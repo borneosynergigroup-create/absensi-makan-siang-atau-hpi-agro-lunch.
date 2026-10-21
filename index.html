@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Absensi Makan Siang - HPI Agro Pontianak</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- SheetJS (xlsx) CDN for Excel Import & Export -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        agro: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            800: '#166534',
+                            900: '#14532d',
+                            dark: '#0f381e'
+                        },
+                        gold: {
+                            400: '#facc15',
+                            500: '#eab308',
+                            600: '#ca8a04'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .tab-btn.active {
+            border-bottom: 3px solid #15803d;
+            color: #15803d;
+            font-weight: 700;
+        }
+        .tv-card-glow {
+            box-shadow: 0 0 25px rgba(34, 197, 94, 0.25);
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+        .pulse-live {
+            animation: pulse-ring 2s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="h-full text-slate-800 antialiased flex flex-col font-sans relative">
+
+    <!-- OVERLAY TRIAL EXPIRED / APLIKASI TERKUNCI -->
+    <div id="trial-locked-screen" class="fixed inset-0 bg-slate-900/95 backdrop-blur-md z-[100] flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl max-w-lg w-full p-8 shadow-2xl border border-slate-100 text-center space-y-6 relative overflow-hidden">
+            <div class="w-20 h-20 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center mx-auto shadow-inner border border-red-200">
+                <i class="fa-solid fa-lock text-4xl"></i>
+            </div>
+
+            <div class="space-y-2">
+                <span class="bg-red-100 text-red-800 text-xs font-black px-3 py-1 rounded-full uppercase tracking-widest">
+                    Masa Uji Coba Berakhir
+                </span>
+                <h2 class="text-2xl font-black text-slate-900">Aplikasi Terkunci</h2>
+                <p class="text-sm text-slate-600 leading-relaxed">
+                    Masa uji coba gratis <strong>1 Hari (23 Jam)</strong> untuk aplikasi ini telah habis. Silakan hubungi pihak Mitra Aplikasi untuk perpanjangan sistem.
+                </p>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 p-4 rounded-2xl text-left space-y-2">
+                <div class="text-xs font-bold text-slate-500 uppercase tracking-wider">Kontak Lisensi & Perpanjangan:</div>
+                <div class="flex items-center justify-between text-slate-800 font-extrabold text-sm sm:text-base">
+                    <span><i class="fa-solid fa-user-shield text-agro-600 mr-2"></i>Admin BSG</span>
+                    <span class="font-mono bg-white px-2 py-1 rounded border text-slate-700">0857-5033-8493</span>
+                </div>
+            </div>
+
+            <div class="pt-2">
+                <a href="https://wa.me/6285750338493?text=Halo%20Admin%20BSG,%20saya%20ingin%20memperpanjang%20lisensi%20aplikasi%20Absensi%20Makan%20Siang%20HPI%20Agro." 
+                   target="_blank" 
+                   class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3.5 px-6 rounded-2xl shadow-lg transition duration-200 flex items-center justify-center gap-3 text-sm">
+                    <i class="fa-brands fa-whatsapp text-xl"></i>
+                    <span>Hubungi Admin via WhatsApp</span>
+                </a>
+            </div>
+            <p class="text-[11px] text-slate-400">HPI Agro Pontianak - Mitra Aplikasi BSG</p>
+        </div>
+    </div>
+
+    <!-- Notification Toast Box -->
+    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- MAIN APP HEADER -->
+    <header id="main-header" class="bg-gradient-to-r from-agro-900 via-agro-800 to-agro-900 text-white shadow-lg border-b-4 border-gold-500 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div class="flex items-center space-x-3.5">
+                <div class="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-agro-800 shadow-md font-black text-xl border-2 border-gold-400">
+                    <i class="fa-solid font-bold fa-leaf text-2xl text-agro-600"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg sm:text-xl font-extrabold tracking-tight text-white flex items-center gap-2">
+                        HPI AGRO PONTIANAK
+                        <span class="text-xs bg-gold-500 text-agro-900 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Lunch System</span>
+                    </h1>
+                    <p class="text-xs text-emerald-200 font-medium">Sistem Absensi & Monitoring Makan Siang Karyawan & Tamu</p>
+                </div>
+            </div>
+
+            <!-- Header Controls & Trial Timer -->
+            <div class="flex items-center justify-between md:justify-end gap-3 pt-2 md:pt-0 border-t md:border-t-0 border-emerald-800/50">
+                
+                <!-- Trial Badge Countdown -->
+                <div class="flex items-center gap-1.5 bg-amber-500/20 border border-amber-400/40 text-amber-300 px-3 py-1.5 rounded-lg text-xs font-semibold">
+                    <i class="fa-solid fa-clock text-amber-400 animate-pulse"></i>
+                    <span>Trial: <strong id="trial-timer" class="font-mono font-bold text-white">23:00:00</strong></span>
+                </div>
+
+                <div class="flex items-center gap-2 bg-agro-900/80 px-3 py-1.5 rounded-lg border border-emerald-700/50 text-xs">
+                    <button id="voice-toggle-btn" onclick="toggleVoice()" class="flex items-center gap-1.5 text-emerald-200 hover:text-white transition">
+                        <i id="voice-icon" class="fa-solid fa-volume-high text-gold-400"></i>
+                        <span id="voice-status" class="font-semibold">Suara: ON</span>
+                    </button>
+                </div>
+
+                <div class="text-right px-3 py-1 bg-black/20 rounded-lg border border-white/10 hidden sm:block">
+                    <div id="live-clock" class="text-sm font-bold tracking-wider font-mono text-gold-400">00:00:00 WIB</div>
+                    <div id="live-date" class="text-[10px] text-emerald-200 uppercase font-semibold">-</div>
+                </div>
+
+                <button onclick="switchTab('tv-tab')" class="bg-gold-500 hover:bg-gold-400 text-agro-900 font-bold px-3.5 py-1.5 rounded-lg text-xs flex items-center gap-2 transition shadow-md hover:scale-105 active:scale-95">
+                    <i class="fa-solid fa-tv"></i>
+                    <span>Display TV</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Navigation Bar -->
+        <nav class="bg-agro-950/40 backdrop-blur border-t border-emerald-800/40">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex overflow-x-auto space-x-1 sm:space-x-4 no-scrollbar">
+                <button onclick="switchTab('absensi-tab')" id="btn-absensi-tab" class="tab-btn active text-white py-2.5 px-3 sm:px-4 text-xs sm:text-sm font-medium whitespace-nowrap hover:text-emerald-200 transition flex items-center gap-2">
+                    <i class="fa-solid fa-user-check text-gold-400"></i> Absensi Makan Siang
+                </button>
+                <button onclick="switchTab('kelola-tab')" id="btn-kelola-tab" class="tab-btn text-emerald-200 py-2.5 px-3 sm:px-4 text-xs sm:text-sm font-medium whitespace-nowrap hover:text-white transition flex items-center gap-2">
+                    <i class="fa-solid fa-users-gear"></i> Kelola Karyawan & Tamu
+                </button>
+                <button onclick="switchTab('dashboard-tab')" id="btn-dashboard-tab" class="tab-btn text-emerald-200 py-2.5 px-3 sm:px-4 text-xs sm:text-sm font-medium whitespace-nowrap hover:text-white transition flex items-center gap-2">
+                    <i class="fa-solid fa-chart-pie"></i> Dashboard & Real-Time Diagram
+                </button>
+                <button onclick="switchTab('tv-tab')" id="btn-tv-tab" class="tab-btn text-emerald-200 py-2.5 px-3 sm:px-4 text-xs sm:text-sm font-medium whitespace-nowrap hover:text-white transition flex items-center gap-2">
+                    <i class="fa-solid fa-desktop"></i> Mode Live TV Display
+                </button>
+            </div>
+        </nav>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main id="main-content" class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- TAB 1: ABSENSI -->
+        <section id="absensi-tab" class="tab-content space-y-6">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-3">
+                    <div class="p-3 bg-emerald-100 text-agro-700 rounded-lg"><i class="fa-solid fa-utensils text-xl"></i></div>
+                    <div>
+                        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Makan Hari Ini</p>
+                        <h3 id="stat-total-present" class="text-2xl font-black text-slate-800">0</h3>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-3">
+                    <div class="p-3 bg-blue-100 text-blue-700 rounded-lg"><i class="fa-solid fa-user-group text-xl"></i></div>
+                    <div>
+                        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Karyawan Hadir</p>
+                        <h3 id="stat-emp-present" class="text-2xl font-black text-slate-800">0</h3>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-3">
+                    <div class="p-3 bg-amber-100 text-amber-700 rounded-lg"><i class="fa-solid fa-id-badge text-xl"></i></div>
+                    <div>
+                        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Tamu Makan</p>
+                        <h3 id="stat-guest-present" class="text-2xl font-black text-slate-800">0</h3>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-3">
+                    <div class="p-3 bg-slate-100 text-slate-600 rounded-lg"><i class="fa-solid fa-percent text-xl"></i></div>
+                    <div>
+                        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Persentase Hadir</p>
+                        <h3 id="stat-percentage" class="text-2xl font-black text-slate-800">0%</h3>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+                <div class="relative w-full md:w-96">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input type="text" id="search-input" onkeyup="filterEmployees()" placeholder="Cari Nama Karyawan atau NIK..." class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-agro-600 focus:bg-white transition">
+                </div>
+                <div class="flex items-center gap-2 w-full md:w-auto justify-end">
+                    <button onclick="openGuestModal()" class="w-full md:w-auto bg-amber-500 hover:bg-amber-600 text-white font-semibold px-4 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 transition shadow-sm">
+                        <i class="fa-solid fa-user-plus"></i><span>+ Absen Tamu Makan</span>
+                    </button>
+                    <button onclick="exportAttendanceToExcel()" class="w-full md:w-auto bg-agro-700 hover:bg-agro-800 text-white font-semibold px-4 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 transition shadow-sm">
+                        <i class="fa-solid fa-file-excel"></i><span>Ekspor Excel</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <label class="text-xs font-bold text-slate-500 uppercase tracking-wider block">Filter Departemen:</label>
+                <div id="department-filter-container" class="flex flex-wrap gap-2"></div>
+            </div>
+
+            <div id="attendance-list-container" class="space-y-6"></div>
+        </section>
+
+        <!-- TAB 2: KELOLA -->
+        <section id="kelola-tab" class="tab-content hidden space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4 h-fit">
+                    <div class="border-b border-slate-100 pb-3">
+                        <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+                            <i class="fa-solid fa-user-plus text-agro-600"></i> Tambah Karyawan Baru
+                        </h3>
+                    </div>
+                    <form id="add-employee-form" onsubmit="handleAddEmployee(event)" class="space-y-3.5">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">NIK / ID Karyawan</label>
+                            <input type="text" id="new-nik" required placeholder="Contoh: HPI-2026-088" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-agro-600">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Nama Lengkap</label>
+                            <input type="text" id="new-nama" required placeholder="Contoh: Budi Santoso" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-agro-600">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Departemen</label>
+                            <select id="new-dept" required class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-agro-600">
+                                <option value="" disabled selected>-- Pilih Departemen --</option>
+                                <option value="Human Capital">Human Capital</option>
+                                <option value="Operation / Plantation">Operation / Plantation</option>
+                                <option value="Agronomy & Mill">Agronomy & Mill</option>
+                                <option value="Finance & Accounting">Finance & Accounting</option>
+                                <option value="IT & GIS">IT & GIS</option>
+                                <option value="Supply Chain / Logistics">Supply Chain / Logistics</option>
+                                <option value="EHS & Sustainability">EHS & Sustainability</option>
+                                <option value="General Affairs">General Affairs</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="w-full bg-agro-700 hover:bg-agro-800 text-white font-bold py-2.5 rounded-xl text-sm transition shadow-sm flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-save"></i> Simpan Karyawan
+                        </button>
+                    </form>
+
+                    <div class="mt-6 pt-5 border-t border-slate-200 space-y-3">
+                        <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                            <i class="fa-solid fa-file-import text-blue-600"></i> Import Data dari Excel (.xlsx)
+                        </h4>
+                        <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleExcelImport(event)">
+                        <button onclick="document.getElementById('excel-file-input').click()" class="w-full bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-semibold py-2 rounded-xl text-xs transition flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-upload"></i> Unggah File Excel
+                        </button>
+                        <button onclick="downloadSampleTemplate()" class="w-full text-slate-500 hover:text-slate-800 text-[11px] underline text-center block">
+                            Unduh Contoh Template Excel
+                        </button>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-2 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3 mb-4">
+                            <div>
+                                <h3 class="font-bold text-slate-800 text-base">Daftar Terdaftar & Status Hari Ini</h3>
+                            </div>
+                            <div>
+                                <button onclick="resetAllAttendance()" class="text-xs bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 px-3 py-1.5 rounded-lg font-semibold transition">
+                                    <i class="fa-solid fa-rotate-left mr-1"></i> Reset Absen Hari Ini
+                                </button>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto max-h-[500px] overflow-y-auto border border-slate-200 rounded-xl">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-slate-100 text-slate-700 uppercase font-bold sticky top-0 z-10">
+                                    <tr>
+                                        <th class="p-3">No</th>
+                                        <th class="p-3">NIK / ID</th>
+                                        <th class="p-3">Nama</th>
+                                        <th class="p-3">Departemen</th>
+                                        <th class="p-3">Tipe</th>
+                                        <th class="p-3">Status Makan</th>
+                                        <th class="p-3 text-center">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="master-employee-tbody" class="divide-y divide-slate-200"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                        <span>Total Terdaftar: <strong id="total-registered-count">0</strong> Orang</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: DASHBOARD -->
+        <section id="dashboard-tab" class="tab-content hidden space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-gradient-to-br from-agro-800 to-agro-900 text-white p-5 rounded-2xl shadow-sm relative overflow-hidden">
+                    <div class="relative z-10">
+                        <p class="text-xs uppercase tracking-wider text-emerald-300 font-semibold">Total Porsi Dikonsumsi</p>
+                        <h2 id="dash-total-porsi" class="text-4xl font-extrabold mt-1 text-gold-400">0</h2>
+                    </div>
+                </div>
+                <div class="bg-gradient-to-br from-blue-800 to-blue-900 text-white p-5 rounded-2xl shadow-sm relative overflow-hidden">
+                    <div class="relative z-10">
+                        <p class="text-xs uppercase tracking-wider text-blue-200 font-semibold">Karyawan Hadir Makan</p>
+                        <h2 id="dash-emp-count" class="text-4xl font-extrabold mt-1">0 / 0</h2>
+                        <p id="dash-emp-percentage" class="text-xs text-blue-200 mt-2">0%</p>
+                    </div>
+                </div>
+                <div class="bg-gradient-to-br from-amber-700 to-amber-800 text-white p-5 rounded-2xl shadow-sm relative overflow-hidden">
+                    <div class="relative z-10">
+                        <p class="text-xs uppercase tracking-wider text-amber-200 font-semibold">Tamu Luar / External</p>
+                        <h2 id="dash-guest-count" class="text-4xl font-extrabold mt-1">0</h2>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                    <h3 class="font-bold text-slate-800 text-sm">Absensi Makan Siang per Departemen</h3>
+                    <div class="h-72"><canvas id="deptBarChart"></canvas></div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                    <h3 class="font-bold text-slate-800 text-sm">Proporsi Kehadiran per Departemen</h3>
+                    <div class="h-72 flex items-center justify-center"><canvas id="deptPieChart"></canvas></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: TV DISPLAY -->
+        <section id="tv-tab" class="tab-content hidden">
+            <div class="bg-slate-950 text-white rounded-3xl p-6 sm:p-8 shadow-2xl border-4 border-agro-700 space-y-8 min-h-[80vh] flex flex-col justify-between">
+                <div class="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-slate-800 pb-6">
+                    <div>
+                        <h2 class="text-2xl sm:text-3xl font-black tracking-wide uppercase">HPI AGRO PONTIANAK</h2>
+                        <p class="text-sm text-emerald-400 font-semibold">LIVE MONITOR ABSENSI MAKAN SIANG</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="bg-slate-900 border border-slate-800 px-5 py-3 rounded-2xl text-center">
+                            <span class="text-[10px] uppercase font-bold text-slate-400">Porsi</span>
+                            <span id="tv-counter-porsi" class="text-3xl font-black text-gold-400">0</span>
+                        </div>
+                        <button onclick="toggleFullScreen()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 p-3.5 rounded-2xl border border-slate-700"><i class="fa-solid fa-expand text-lg"></i></button>
+                    </div>
+                </div>
+
+                <div class="bg-gradient-to-r from-emerald-950 via-agro-900 to-slate-900 p-6 rounded-3xl border-2 border-emerald-500/40 tv-card-glow flex flex-col md:flex-row items-center justify-between gap-6">
+                    <div>
+                        <span class="text-xs uppercase tracking-widest text-emerald-400 font-extrabold bg-emerald-900/60 px-3 py-1 rounded-full">Baru Saja Absen</span>
+                        <h3 id="tv-last-name" class="text-2xl sm:text-4xl font-black text-white mt-1">Belum Ada Absen</h3>
+                        <p id="tv-last-dept" class="text-base text-slate-300 font-medium mt-0.5">-</p>
+                    </div>
+                    <div class="text-right">
+                        <span id="tv-last-time" class="text-2xl font-mono font-bold text-gold-400 block">--:--:--</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 bg-slate-900/90 border border-slate-800 p-5 rounded-2xl space-y-4">
+                        <h4 class="text-sm font-bold uppercase tracking-wider text-emerald-400">Daftar Sudah Makan</h4>
+                        <div class="max-h-72 overflow-y-auto pr-2 space-y-2.5" id="tv-recent-list"></div>
+                    </div>
+                    <div class="bg-slate-900/90 border border-slate-800 p-5 rounded-2xl space-y-4">
+                        <h4 class="text-sm font-bold uppercase tracking-wider text-gold-400">Per Departemen</h4>
+                        <div id="tv-dept-grid" class="space-y-2.5 max-h-72 overflow-y-auto pr-1"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- GUEST MODAL -->
+    <div id="guest-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4 relative">
+            <button onclick="closeGuestModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-lg"><i class="fa-solid fa-xmark"></i></button>
+            <h3 class="font-bold text-slate-800 text-lg"><i class="fa-solid fa-user-plus text-amber-500 mr-2"></i>Absen Tamu Makan Siang</h3>
+            <form id="guest-form" onsubmit="handleGuestEntry(event)" class="space-y-3.5">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Nama Tamu</label>
+                    <input type="text" id="guest-nama" required placeholder="Contoh: Pak Suparno" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Instansi / Perusahaan</label>
+                    <input type="text" id="guest-instansi" required placeholder="Contoh: Dinas Pertanian" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm">
+                </div>
+                <div class="pt-2 flex items-center gap-2">
+                    <button type="button" onclick="closeGuestModal()" class="w-1/2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2.5 rounded-xl text-sm">Batal</button>
+                    <button type="submit" class="w-1/2 bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 rounded-xl text-sm shadow-sm">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN SCRIPT -->
+    <script>
+        // TRIAL 23 HOURS SYSTEM
+        const TRIAL_DURATION_MS = 23 * 60 * 60 * 1000;
+
+        function initTrialSystem() {
+            let trialStartTime = localStorage.getItem('hpi_lunch_trial_start');
+            if (!trialStartTime) {
+                trialStartTime = Date.now();
+                localStorage.setItem('hpi_lunch_trial_start', trialStartTime);
+            } else {
+                trialStartTime = parseInt(trialStartTime, 10);
+            }
+
+            function checkTrialStatus() {
+                const now = Date.now();
+                const elapsedTime = now - trialStartTime;
+                const remainingTime = TRIAL_DURATION_MS - elapsedTime;
+
+                if (remainingTime <= 0) {
+                    lockApplication();
+                } else {
+                    updateTrialTimerUI(remainingTime);
+                }
+            }
+
+            checkTrialStatus();
+            setInterval(checkTrialStatus, 1000);
+        }
+
+        function updateTrialTimerUI(remainingMs) {
+            const totalSeconds = Math.floor(remainingMs / 1000);
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+            const pad = (n) => n.toString().padStart(2, '0');
+            const timerElem = document.getElementById('trial-timer');
+            if (timerElem) {
+                timerElem.textContent = `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+            }
+        }
+
+        function lockApplication() {
+            const lockOverlay = document.getElementById('trial-locked-screen');
+            const mainContent = document.getElementById('main-content');
+            const timerElem = document.getElementById('trial-timer');
+
+            if (timerElem) timerElem.textContent = "00:00:00 (HABIS)";
+            if (lockOverlay) lockOverlay.classList.remove('hidden');
+            if (mainContent) mainContent.classList.add('pointer-events-none', 'opacity-10', 'blur-sm');
+        }
+
+        // APP LOGIC & DATA
+        const DEPARTMENTS = [
+            "Human Capital", "Operation / Plantation", "Agronomy & Mill",
+            "Finance & Accounting", "IT & GIS", "Supply Chain / Logistics",
+            "EHS & Sustainability", "General Affairs"
+        ];
+
+        const DEFAULT_EMPLOYEES = [
+            { id: "HPI-HC-001", name: "Ahmad Rizky", dept: "Human Capital", type: "Karyawan", present: false, timestamp: null },
+            { id: "HPI-HC-002", name: "Siti Rahmawati", dept: "Human Capital", type: "Karyawan", present: false, timestamp: null },
+            { id: "HPI-OP-001", name: "Bambang Wijaya", dept: "Operation / Plantation", type: "Karyawan", present: false, timestamp: null },
+            { id: "HPI-AM-001", name: "Hendrik Prasetyo", dept: "Agronomy & Mill", type: "Karyawan", present: false, timestamp: null },
+            { id: "HPI-FA-001", name: "Eko Susanto", dept: "Finance & Accounting", type: "Karyawan", present: false, timestamp: null },
+            { id: "HPI-IT-001", name: "Agus Pratama", dept: "IT & GIS", type: "Karyawan", present: false, timestamp: null }
+        ];
+
+        let employees = [];
+        let selectedDeptFilter = "ALL";
+        let voiceEnabled = true;
+        let barChartInstance = null;
+        let pieChartInstance = null;
+        let lastCheckedInPerson = null;
+
+        window.onload = function() {
+            initTrialSystem();
+            loadStorageData();
+            startLiveClock();
+            renderDepartmentFilters();
+            renderAttendanceList();
+            renderMasterTable();
+            initCharts();
+            updateDashboard();
+            updateTVDisplay();
+        };
+
+        function loadStorageData() {
+            const stored = localStorage.getItem('hpi_agro_lunch_data');
+            if (stored) {
+                try { employees = JSON.parse(stored); } catch(e) { employees = [...DEFAULT_EMPLOYEES]; }
+            } else {
+                employees = [...DEFAULT_EMPLOYEES];
+                saveStorageData();
+            }
+        }
+
+        function saveStorageData() {
+            localStorage.setItem('hpi_agro_lunch_data', JSON.stringify(employees));
+        }
+
+        function startLiveClock() {
+            setInterval(() => {
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString('id-ID') + ' WIB';
+                const dateStr = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' });
+                if(document.getElementById('live-clock')) document.getElementById('live-clock').textContent = timeStr;
+                if(document.getElementById('live-date')) document.getElementById('live-date').textContent = dateStr;
+            }, 1000);
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active', 'text-white'));
+            document.getElementById(tabId).classList.remove('hidden');
+            const activeBtn = document.getElementById('btn-' + tabId);
+            if(activeBtn) activeBtn.classList.add('active', 'text-white');
+            if(tabId === 'dashboard-tab') updateDashboard();
+            if(tabId === 'tv-tab') updateTVDisplay();
+        }
+
+        function toggleVoice() {
+            voiceEnabled = !voiceEnabled;
+            document.getElementById('voice-status').textContent = voiceEnabled ? "Suara: ON" : "Suara: OFF";
+        }
+
+        function speakGreeting(nama, dept) {
+            if (!voiceEnabled || !('speechSynthesis' in window)) return;
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(`Selamat makan siang, ${nama} dari ${dept}.`);
+            utterance.lang = 'id-ID';
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function toggleAttendance(id) {
+            const emp = employees.find(e => e.id === id);
+            if(!emp) return;
+            emp.present = !emp.present;
+            emp.timestamp = emp.present ? new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : null;
+            if (emp.present) {
+                lastCheckedInPerson = emp;
+                speakGreeting(emp.name, emp.dept);
+            }
+            saveStorageData();
+            renderAttendanceList();
+            renderMasterTable();
+            updateDashboard();
+            updateTVDisplay();
+        }
+
+        function renderDepartmentFilters() {
+            const container = document.getElementById('department-filter-container');
+            if(!container) return;
+            let html = `<button onclick="setDepartmentFilter('ALL')" class="px-3 py-1.5 rounded-lg text-xs font-bold border transition ${selectedDeptFilter === 'ALL' ? 'bg-agro-700 text-white border-agro-700' : 'bg-white text-slate-600 border-slate-300'}">Semua</button>`;
+            DEPARTMENTS.forEach(dept => {
+                html += `<button onclick="setDepartmentFilter('${dept}')" class="px-3 py-1.5 rounded-lg text-xs font-bold border transition ${selectedDeptFilter === dept ? 'bg-agro-700 text-white border-agro-700' : 'bg-white text-slate-600 border-slate-300'}">${dept}</button>`;
+            });
+            container.innerHTML = html;
+        }
+
+        function setDepartmentFilter(dept) {
+            selectedDeptFilter = dept;
+            renderDepartmentFilters();
+            renderAttendanceList();
+        }
+
+        function filterEmployees() { renderAttendanceList(); }
+
+        function renderAttendanceList() {
+            const container = document.getElementById('attendance-list-container');
+            if(!container) return;
+            const query = document.getElementById('search-input')?.value.toLowerCase() || "";
+            const filtered = employees.filter(e => (selectedDeptFilter === 'ALL' || e.dept === selectedDeptFilter) && (e.name.toLowerCase().includes(query) || e.id.toLowerCase().includes(query)));
+            
+            const grouped = {};
+            filtered.forEach(e => { if(!grouped[e.dept]) grouped[e.dept] = []; grouped[e.dept].push(e); });
+
+            let html = "";
+            for (const [dept, list] of Object.entries(grouped)) {
+                html += `<div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden"><div class="bg-slate-100 px-5 py-3 font-bold text-xs flex justify-between"><span>${dept}</span><span>Hadir: ${list.filter(e => e.present).length}/${list.length}</span></div><div class="p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">`;
+                list.forEach(emp => {
+                    html += `<div onclick="toggleAttendance('${emp.id}')" class="cursor-pointer p-3.5 rounded-xl border-2 transition ${emp.present ? 'bg-emerald-50 border-emerald-500' : 'bg-slate-50 border-slate-200'}">
+                        <div class="text-[10px] font-mono text-slate-400">${emp.id}</div>
+                        <div class="font-bold text-sm text-slate-800">${emp.name}</div>
+                        <div class="mt-2 text-xs font-bold ${emp.present ? 'text-emerald-600' : 'text-slate-400'}">${emp.present ? 'Hadir ('+emp.timestamp+')' : 'Belum Makan'}</div>
+                    </div>`;
+                });
+                html += `</div></div>`;
+            }
+            container.innerHTML = html || '<div class="p-6 text-center text-slate-400">Tidak ada data.</div>';
+            updateSummaryCounters();
+        }
+
+        function updateSummaryCounters() {
+            const total = employees.filter(e => e.present).length;
+            const empP = employees.filter(e => e.present && e.type === 'Karyawan').length;
+            const guestP = employees.filter(e => e.present && e.type === 'Tamu').length;
+            const totalEmp = employees.filter(e => e.type === 'Karyawan').length;
+            if(document.getElementById('stat-total-present')) document.getElementById('stat-total-present').textContent = total;
+            if(document.getElementById('stat-emp-present')) document.getElementById('stat-emp-present').textContent = empP;
+            if(document.getElementById('stat-guest-present')) document.getElementById('stat-guest-present').textContent = guestP;
+            if(document.getElementById('stat-percentage')) document.getElementById('stat-percentage').textContent = (totalEmp ? Math.round((empP/totalEmp)*100) : 0) + '%';
+        }
+
+        function openGuestModal() { document.getElementById('guest-modal').classList.remove('hidden'); }
+        function closeGuestModal() { document.getElementById('guest-modal').classList.add('hidden'); }
+
+        function handleGuestEntry(e) {
+            e.preventDefault();
+            const nama = document.getElementById('guest-nama').value.trim();
+            const instansi = document.getElementById('guest-instansi').value.trim();
+            if(!nama) return;
+            const newGuest = { id: "TAMU-"+Math.floor(1000+Math.random()*9000), name: `${nama} (${instansi})`, dept: "General Affairs", type: "Tamu", present: true, timestamp: new Date().toLocaleTimeString('id-ID') };
+            employees.unshift(newGuest);
+            lastCheckedInPerson = newGuest;
+            saveStorageData();
+            closeGuestModal();
+            renderAttendanceList();
+            renderMasterTable();
+            updateDashboard();
+            updateTVDisplay();
+        }
+
+        function handleAddEmployee(e) {
+            e.preventDefault();
+            const nik = document.getElementById('new-nik').value.trim();
+            const nama = document.getElementById('new-nama').value.trim();
+            const dept = document.getElementById('new-dept').value;
+            employees.push({ id: nik, name: nama, dept: dept, type: "Karyawan", present: false, timestamp: null });
+            saveStorageData();
+            document.getElementById('add-employee-form').reset();
+            renderAttendanceList();
+            renderMasterTable();
+        }
+
+        function deleteEmployee(id) {
+            employees = employees.filter(e => e.id !== id);
+            saveStorageData();
+            renderAttendanceList();
+            renderMasterTable();
+        }
+
+        function resetAllAttendance() {
+            employees.forEach(e => { e.present = false; e.timestamp = null; });
+            saveStorageData();
+            renderAttendanceList();
+            renderMasterTable();
+            updateDashboard();
+            updateTVDisplay();
+        }
+
+        function renderMasterTable() {
+            const tbody = document.getElementById('master-employee-tbody');
+            if(!tbody) return;
+            document.getElementById('total-registered-count').textContent = employees.length;
+            let html = "";
+            employees.forEach((emp, i) => {
+                html += `<tr class="border-b"><td class="p-3">${i+1}</td><td class="p-3 font-mono">${emp.id}</td><td class="p-3 font-bold">${emp.name}</td><td class="p-3">${emp.dept}</td><td class="p-3">${emp.type}</td><td class="p-3">${emp.present ? 'Hadir' : 'Belum'}</td><td class="p-3 text-center"><button onclick="deleteEmployee('${emp.id}')" class="text-red-500"><i class="fa-solid fa-trash"></i></button></td></tr>`;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function handleExcelImport(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const data = new Uint8Array(evt.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                json.forEach(row => {
+                    employees.push({ id: String(row.NIK || Math.random()), name: String(row.Nama), dept: String(row.Departemen || 'General Affairs'), type: 'Karyawan', present: false, timestamp: null });
+                });
+                saveStorageData();
+                renderAttendanceList();
+                renderMasterTable();
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function downloadSampleTemplate() {
+            const ws = XLSX.utils.json_to_sheet([{ NIK: "HPI-101", Nama: "Contoh", Departemen: "Human Capital" }]);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Template");
+            XLSX.writeFile(wb, "Template_Karyawan.xlsx");
+        }
+
+        function exportAttendanceToExcel() {
+            const ws = XLSX.utils.json_to_sheet(employees.map(e => ({ NIK: e.id, Nama: e.name, Departemen: e.dept, Status: e.present ? 'HADIR' : 'BELUM' })));
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Absensi");
+            XLSX.writeFile(wb, "Laporan_Absensi.xlsx");
+        }
+
+        function initCharts() {
+            const barCtx = document.getElementById('deptBarChart')?.getContext('2d');
+            if(barCtx) {
+                barChartInstance = new Chart(barCtx, {
+                    type: 'bar',
+                    data: { labels: DEPARTMENTS, datasets: [{ label: 'Sudah Makan', data: [], backgroundColor: '#16a34a' }] },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            }
+            const pieCtx = document.getElementById('deptPieChart')?.getContext('2d');
+            if(pieCtx) {
+                pieChartInstance = new Chart(pieCtx, {
+                    type: 'doughnut',
+                    data: { labels: DEPARTMENTS, datasets: [{ data: [], backgroundColor: ['#16a34a','#0284c7','#eab308','#8b5cf6','#ec4899','#f97316','#14b8a6','#64748b'] }] },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            }
+        }
+
+        function updateDashboard() {
+            const totalP = employees.filter(e => e.present).length;
+            const empP = employees.filter(e => e.present && e.type === 'Karyawan').length;
+            const guestP = employees.filter(e => e.present && e.type === 'Tamu').length;
+            const totalEmp = employees.filter(e => e.type === 'Karyawan').length;
+
+            if(document.getElementById('dash-total-porsi')) document.getElementById('dash-total-porsi').textContent = totalP;
+            if(document.getElementById('dash-emp-count')) document.getElementById('dash-emp-count').textContent = `${empP} / ${totalEmp}`;
+            if(document.getElementById('dash-guest-count')) document.getElementById('dash-guest-count').textContent = guestP;
+
+            const presentData = DEPARTMENTS.map(d => employees.filter(e => e.dept === d && e.present).length);
+            if(barChartInstance) { barChartInstance.data.datasets[0].data = presentData; barChartInstance.update(); }
+            if(pieChartInstance) { pieChartInstance.data.datasets[0].data = presentData; pieChartInstance.update(); }
+        }
+
+        function updateTVDisplay() {
+            const totalP = employees.filter(e => e.present).length;
+            if(document.getElementById('tv-counter-porsi')) document.getElementById('tv-counter-porsi').textContent = totalP;
+            if(lastCheckedInPerson && document.getElementById('tv-last-name')) {
+                document.getElementById('tv-last-name').textContent = lastCheckedInPerson.name;
+                document.getElementById('tv-last-dept').textContent = lastCheckedInPerson.dept;
+                document.getElementById('tv-last-time').textContent = lastCheckedInPerson.timestamp;
+            }
+            const recent = document.getElementById('tv-recent-list');
+            if(recent) {
+                recent.innerHTML = employees.filter(e => e.present).slice(-5).reverse().map(e => `<div class="bg-slate-800 p-2.5 rounded text-xs flex justify-between"><span>${e.name}</span><span class="text-gold-400">${e.timestamp}</span></div>`).join('') || '<div class="text-slate-500 text-xs">Belum ada absen</div>';
+            }
+        }
+
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+            else if (document.exitFullscreen) document.exitFullscreen();
+        }
+    </script>
+</body>
+</html>
